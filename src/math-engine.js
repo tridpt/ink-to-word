@@ -87,13 +87,16 @@ export class MathEngine {
     });
 
     const sorted = [...boxes].sort((a, b) => a.minX - b.minX);
+    const heights = boxes.map(box => box.maxY - box.minY).sort((a, b) => a - b);
+    const medianHeight = heights[Math.floor(heights.length / 2)] || 24;
+    const gapThreshold = Math.max(12, Math.min(24, medianHeight * 0.12));
     const clusters = [];
     let current = [sorted[0]];
 
     for (let i = 1; i < sorted.length; i++) {
       const box = sorted[i];
       const clusterMaxX = Math.max(...current.map(item => item.maxX));
-      if (box.minX <= clusterMaxX + 12) {
+      if (box.minX <= clusterMaxX + gapThreshold) {
         current.push(box);
       } else {
         clusters.push(current);
@@ -110,15 +113,24 @@ export class MathEngine {
     const baseMaxY = Math.max(...baseBoxes.map(box => box.maxY));
     const baseMinX = Math.min(...baseBoxes.map(box => box.minX));
     const baseHeight = baseMaxY - baseMinY;
+    const baseWidth = Math.max(...baseBoxes.map(box => box.maxX)) - baseMinX;
     const baseMidY = (baseMinY + baseMaxY) / 2;
+    const hasIntegralLikeStroke = baseBoxes.some(box =>
+      box.maxY - box.minY > baseHeight * 0.7 &&
+      (box.maxY - box.minY) / Math.max(1, box.maxX - box.minX) > 4.5 &&
+      box.maxX - box.minX < baseWidth * 0.18
+    );
+    if (hasIntegralLikeStroke) return null;
     const expMinY = Math.min(...expCluster.map(box => box.minY));
     const expMaxY = Math.max(...expCluster.map(box => box.maxY));
     const expMinX = Math.min(...expCluster.map(box => box.minX));
+    const expHeight = expMaxY - expMinY;
     const expMidY = (expMinY + expMaxY) / 2;
 
     if (
       expMinX >= baseMinX + 10 &&
       (expMidY < baseMidY || expMinY < baseMinY + baseHeight * 0.25) &&
+      expHeight <= baseHeight * 0.85 &&
       expMaxY <= baseMaxY + 12
     ) {
       return {
@@ -126,6 +138,49 @@ export class MathEngine {
         baseStrokes: baseBoxes.map(box => box.stroke),
         expStrokes: expCluster.map(box => box.stroke)
       };
+    }
+
+    return null;
+  }
+
+  detectFractionStructure(strokes) {
+    if (!strokes || strokes.length < 3) return null;
+
+    const boxes = strokes.map((stroke, index) => {
+      const minX = Math.min(...stroke.x);
+      const maxX = Math.max(...stroke.x);
+      const minY = Math.min(...stroke.y);
+      const maxY = Math.max(...stroke.y);
+      return {
+        index,
+        minX,
+        maxX,
+        minY,
+        maxY,
+        w: maxX - minX,
+        h: maxY - minY,
+        cx: (minX + maxX) / 2,
+        stroke
+      };
+    });
+
+    for (const bar of boxes) {
+      if (bar.w <= 30 || bar.h >= 20 || bar.w / Math.max(1, bar.h) <= 2.5) continue;
+
+      const topStrokes = boxes
+        .filter(box => box.index !== bar.index && box.maxY <= bar.minY + 10 && box.cx >= bar.minX - 15 && box.cx <= bar.maxX + 15)
+        .map(box => box.stroke);
+      const bottomStrokes = boxes
+        .filter(box => box.index !== bar.index && box.minY >= bar.maxY - 10 && box.cx >= bar.minX - 15 && box.cx <= bar.maxX + 15)
+        .map(box => box.stroke);
+
+      if (topStrokes.length > 0 && bottomStrokes.length > 0) {
+        return {
+          type: 'fraction',
+          topStrokes,
+          bottomStrokes
+        };
+      }
     }
 
     return null;
@@ -176,9 +231,24 @@ export class MathEngine {
       }
     }
 
+    // Phân số cần được nhận ra trước tích phân vì chữ số "1" cao,
+    // hẹp trong tử số dễ bị nhầm thành dấu tích phân.
+    const fractionStructure = this.detectFractionStructure(strokes);
+    if (fractionStructure) return fractionStructure;
+
+    // Dùng cùng một kết quả số mũ cho các bước sau. Nhờ đó chữ số cao
+    // như "3" trong 3^3 không bị nhầm thành dấu tích phân.
+    const exponentStructure = this.detectExponentStructure(strokes);
+
     // 2. Kiểm tra DẤU TÍCH PHÂN (Integral check)
     for (let i = 0; i < boxes.length; i++) {
       const b = boxes[i];
+      if (exponentStructure && [
+        ...exponentStructure.baseStrokes,
+        ...exponentStructure.expStrokes
+      ].includes(b.stroke)) {
+        continue;
+      }
       if (b.h > 50 && (b.h / Math.max(1, b.w)) > 1.6) {
         const upperStrokes = boxes
           .filter(o => o.index !== i && o.cx > b.minX && o.cx < b.maxX + 35 && o.cy < b.minY + b.h * 0.35)
@@ -202,81 +272,8 @@ export class MathEngine {
       }
     }
 
-    // 3. Kiểm tra PHÂN SỐ (Fraction check)
-    for (let i = 0; i < boxes.length; i++) {
-      const b = boxes[i];
-      if (b.w > 30 && b.h < 20 && (b.w / Math.max(1, b.h)) > 2.5) {
-        const topStrokes = boxes
-          .filter(o => o.index !== i && o.maxY <= b.minY + 10 && o.cx >= b.minX - 15 && o.cx <= b.maxX + 15)
-          .map(o => o.stroke);
-
-        const bottomStrokes = boxes
-          .filter(o => o.index !== i && o.minY >= b.maxY - 10 && o.cx >= b.minX - 15 && o.cx <= b.maxX + 15)
-          .map(o => o.stroke);
-
-        if (topStrokes.length > 0 && bottomStrokes.length > 0) {
-          return {
-            type: 'fraction',
-            barIndex: i,
-            topStrokes,
-            bottomStrokes
-          };
-        }
-      }
-    }
-
-    // 4. Kiểm tra SỐ MŨ HÌNH HỌC (Geometric Exponent check - Hỗ trợ cả số mũ nhiều nét như 3, 4, 5...)
-    if (boxes.length >= 2) {
-      // Gom các nét thành các cụm ký tự theo chiều ngang X
-      const sortedBoxes = [...boxes].sort((a, b) => a.minX - b.minX);
-      const clusters = [];
-      let curCluster = [sortedBoxes[0]];
-
-      for (let k = 1; k < sortedBoxes.length; k++) {
-        const curBox = sortedBoxes[k];
-        const clusterMaxX = Math.max(...curCluster.map(b => b.maxX));
-        // Nếu nét k nằm trong phạm vi hoặc sát cạnh cụm hiện tại (< 14px)
-        if (curBox.minX <= clusterMaxX + 12) {
-          curCluster.push(curBox);
-        } else {
-          clusters.push(curCluster);
-          curCluster = [curBox];
-        }
-      }
-      if (curCluster.length > 0) clusters.push(curCluster);
-
-      // Nếu có ít nhất 2 cụm ký tự (Base và Exponent)
-      if (clusters.length >= 2) {
-        const expCluster = clusters[clusters.length - 1];
-        const baseClusters = clusters.slice(0, clusters.length - 1);
-        const allBaseBoxes = baseClusters.flat();
-
-        const baseMinY = Math.min(...allBaseBoxes.map(b => b.minY));
-        const baseMaxY = Math.max(...allBaseBoxes.map(b => b.maxY));
-        const baseMinX = Math.min(...allBaseBoxes.map(b => b.minX));
-        const baseH = baseMaxY - baseMinY;
-        const baseMidY = (baseMinY + baseMaxY) / 2;
-
-        const expMinY = Math.min(...expCluster.map(b => b.minY));
-        const expMaxY = Math.max(...expCluster.map(b => b.maxY));
-        const expMinX = Math.min(...expCluster.map(b => b.minX));
-        const expMidY = (expMinY + expMaxY) / 2;
-
-        // Điều kiện số mũ:
-        // Cụm số mũ nằm lệch bên phải, tâm Y nằm ở nửa trên và đáy không tụt quá sâu
-        const isToTheRight = expMinX >= baseMinX + 10;
-        const isElevated = expMidY < baseMidY || expMinY < baseMinY + baseH * 0.25;
-        const isNotBelow = expMaxY <= baseMaxY + 12;
-
-        if (isToTheRight && isElevated && isNotBelow) {
-          return {
-            type: 'exponent',
-            baseStrokes: allBaseBoxes.map(b => b.stroke),
-            expStrokes: expCluster.map(b => b.stroke)
-          };
-        }
-      }
-    }
+    // 3. Kiểm tra SỐ MŨ HÌNH HỌC
+    if (exponentStructure) return exponentStructure;
 
     return { type: 'expression', strokes };
   }
@@ -327,6 +324,21 @@ export class MathEngine {
           base = this.textToLatex(base);
           exp = this.textToLatex(exp);
           innerText = `${base}^{${exp}}`;
+        } else if (innerStructure.type === 'fraction') {
+          const fractionRes = await this.recognizeMathFormula(
+            structure.innerStrokes,
+            recognizer,
+            width,
+            height
+          );
+          if (fractionRes.success && fractionRes.latex) {
+            innerText = fractionRes.latex;
+          } else {
+            innerRes = await recognizer.recognize(structure.innerStrokes, width, height);
+            if (innerRes.success && innerRes.top) {
+              innerText = this.cleanMathTokens(innerRes.top);
+            }
+          }
         } else {
           innerRes = await recognizer.recognize(structure.innerStrokes, width, height);
           if (innerRes.success && innerRes.top) {
@@ -520,6 +532,10 @@ export class MathEngine {
   cleanMathTokens(str) {
     if (!str) return '';
     return str
+      .replace(/[×✕·]/g, '*')
+      .replace(/[÷]/g, '/')
+      .replace(/[−–—﹣]/g, '-')
+      .replace(/[﹢]/g, '+')
       .replace(/x\s*2/g, 'x^2')
       .replace(/y\s*2/g, 'y^2')
       .replace(/z\s*2/g, 'z^2')
