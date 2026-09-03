@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InkToWord Studio - Viết Tay Thành Văn Bản Word & Bảng Trắng</title>
+  <meta name="description" content="Ứng dụng viết tay kỹ thuật số nhận diện thông minh tiếng Việt và tự động chuyển thành văn bản chuẩn Word hoặc Bảng Trắng tương tác với các thẻ ghi chú đẹp mắt.">
+
+  <!-- Google Fonts chất lượng cao -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Dancing+Script:wght@500;700&family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Header chính ứng dụng -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <div class="logo-icon">
+          <i data-lucide="feather"></i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">InkToWord <span class="badge-ai">PRO</span></span>
+          <span class="brand-subtitle">Viết Tay Thành Văn Bản Word & Bảng Trắng</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bộ chuyển đổi chế độ xem: Trang Word VS Bảng Trắng -->
+    <div class="header-center">
+      <div class="mode-tab-group">
+        <button class="mode-tab-btn active" id="tab-btn-word" data-output-mode="word" title="Xem dạng trang tài liệu Microsoft Word chuẩn A4">
+          <i data-lucide="file-text"></i> <span>Trang Word (A4)</span>
+        </button>
+        <button class="mode-tab-btn" id="tab-btn-whiteboard" data-output-mode="whiteboard" title="Xem dạng Bảng Trắng tương tác với các thẻ ghi chú tự do kéo thả">
+          <i data-lucide="layout-grid"></i> <span>Bảng Trắng (Whiteboard)</span>
+        </button>
+      </div>
+
+      <!-- Bộ chọn Typography Preset nhanh -->
+      <div class="preset-selector-wrapper" id="preset-wrapper">
+        <label for="typography-preset-select" class="preset-label">
+          <i data-lucide="palette"></i> Phông chữ:
+        </label>
+        <select id="typography-preset-select" class="preset-dropdown">
+          <option value="modern" selected>✨ Hiện Đại & Tinh Tế (Be Vietnam Pro)</option>
+          <option value="office">🏛️ Văn Bản Chuẩn Word (Times New Roman / Hành Chính)</option>
+          <option value="literary">📖 Tạp Chí & Văn Học (Merriweather)</option>
+          <option value="editorial">💎 Nghệ Thuật Sang Trọng (Playfair Display)</option>
+          <option value="handwritten">✍️ Sổ Tay Bút Viết (Dancing Script)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Chế độ xem bố cục -->
+      <div class="view-mode-group">
+        <button class="icon-btn active" data-layout="split" title="Chia đôi 2 màn hình">
+          <i data-lucide="columns-2"></i>
+        </button>
+        <button class="icon-btn" data-layout="canvas-only" title="Chỉ bảng viết tay">
+          <i data-lucide="pen-tool"></i>
+        </button>
+        <button class="icon-btn" data-layout="doc-only" title="Chỉ trang tài liệu / Bảng trắng">
+          <i data-lucide="expand"></i>
+        </button>
+      </div>
+
+      <!-- Nút cài đặt API Key AI Vision -->
+      <button id="btn-open-api-modal" class="icon-btn" title="Cài đặt Gemini API Key cho AI Vision Toán Học">
+        <i data-lucide="key-round"></i>
+      </button>
+
+      <!-- Nút đổi theme sáng/tối -->
+      <button id="btn-theme-toggle" class="icon-btn" title="Chuyển đổi Chế độ Sáng / Tối">
+        <i data-lucide="moon"></i>
+      </button>
+
+      <!-- Hướng dẫn / Nét mẫu -->
+      <button id="btn-load-sample" class="action-btn outline-btn" title="Xem nét chữ mẫu để thử nghiệm nhanh">
+        <i data-lucide="sparkles"></i> Nét Mẫu
+      </button>
+    </div>
+  </header>
+
+  <!-- Vùng làm việc chính (Split Workspace) -->
+  <main class="workspace-container layout-split" id="main-workspace">
+    
+    <!-- KHUNG TRÁI: BẢNG VIẾT TAY (Handwriting Canvas Studio) -->
+    <section class="canvas-panel" id="panel-canvas">
+      <!-- Thanh công cụ vẽ nét -->
+      <div class="panel-toolbar canvas-toolbar">
+        <div class="toolbar-group tools-selection">
+          <button class="tool-btn active" data-tool="fountain" title="Bút mực máy (nét thanh đậm)">
+            <i data-lucide="pen"></i> <span>Bút Mực</span>
+          </button>
+          <button class="tool-btn" data-tool="ballpoint" title="Bút bi (nét đều, sắc nét)">
+            <i data-lucide="edit-3"></i> <span>Bút Bi</span>
+          </button>
+          <button class="tool-btn" data-tool="highlighter" title="Bút dạ quang (đánh dấu trong suốt)">
+            <i data-lucide="highlighter"></i> <span>Dạ Quang</span>
+          </button>
+          <button class="tool-btn" data-tool="eraser" title="Tẩy xóa nét">
+            <i data-lucide="eraser"></i> <span>Tẩy</span>
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Bảng màu mực tuyển chọn -->
+        <div class="toolbar-group color-palette">
+          <button class="color-dot active" data-color="#1e293b" style="background: #1e293b;" title="Mực đen truyền thống"></button>
+          <button class="color-dot" data-color="#1d4ed8" style="background: #1d4ed8;" title="Mực xanh cửu long"></button>
+          <button class="color-dot" data-color="#b91c1c" style="background: #b91c1c;" title="Mực đỏ tươi"></button>
+          <button class="color-dot" data-color="#047857" style="background: #047857;" title="Mực xanh lá đậm"></button>
+          <button class="color-dot" data-color="#7c3aed" style="background: #7c3aed;" title="Mực tím học trò"></button>
+          <button class="color-dot" data-color="#f59e0b" style="background: #f59e0b;" title="Vàng nghệ"></button>
+          
+          <label class="custom-color-btn" title="Chọn màu mực tùy biến">
+            <input type="color" id="custom-color-picker" value="#1e293b">
+            <i data-lucide="pipette"></i>
+          </label>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Cỡ nét vẽ -->
+        <div class="toolbar-group stroke-size-control">
+          <label for="stroke-width-range" title="Độ dày nét bút">
+            <i data-lucide="circle-dot"></i>
+          </label>
+          <input type="range" id="stroke-width-range" min="1" max="10" value="3" step="0.5">
+          <span id="stroke-width-val" class="size-label">3px</span>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Chọn nền giấy -->
+        <div class="toolbar-group paper-selector-group">
+          <i data-lucide="layers"></i>
+          <select id="paper-select" class="paper-dropdown" title="Đổi kiểu nền giấy viết">
+            <option value="grid-primary">Vở Ô Ly Học Sinh</option>
+            <option value="lined-notebook">Vở Kẻ Ngang</option>
+            <option value="dots">Sổ Tay Chấm Bi (Dot Grid)</option>
+            <option value="blank">Giấy Trắng Trơn</option>
+            <option value="sepia">Giấy Cổ Điển Ngả Vàng</option>
+            <option value="dark">Bảng Phấn Đen</option>
+          </select>
+        </div>
+
+        <!-- Tác vụ hoàn tác, làm lại, xóa -->
+        <div class="toolbar-group actions-end">
+          <button id="btn-sample-2lines" class="tool-btn" style="background: rgba(37,99,235,0.1); color: var(--primary); font-weight: 600;" title="Tải thử nét viết tay 2 dòng">
+            <i data-lucide="sparkles"></i> <span>Mẫu 2 Dòng</span>
+          </button>
+          <button id="btn-undo" class="icon-btn-sm" title="Hoàn tác nét vừa vẽ (Ctrl+Z)" disabled>
+            <i data-lucide="undo-2"></i>
+          </button>
+          <button id="btn-redo" class="icon-btn-sm" title="Làm lại nét (Ctrl+Y)" disabled>
+            <i data-lucide="redo-2"></i>
+          </button>
+          <button id="btn-clear-canvas" class="icon-btn-sm text-danger" title="Xóa toàn bộ nét trên bảng" disabled>
+            <i data-lucide="trash-2"></i>
+          </button>
+          
+          <label class="icon-btn-sm" title="Tải ảnh chữ viết tay có sẵn từ máy">
+            <input type="file" id="upload-handwriting-image" accept="image/*" style="display: none;">
+            <i data-lucide="image-up"></i>
+          </label>
+        </div>
+      </div>
+
+      <!-- Dải chọn Chế độ Nhập: Văn Bản vs Công Thức Toán Học -->
+      <div class="canvas-sub-header" id="canvas-sub-header">
+        <div class="input-type-toggle">
+          <button class="type-toggle-btn active" id="btn-mode-text" data-input-mode="text" title="Chế độ nhận diện chữ viết thông thường">
+            <i data-lucide="type"></i> <span>Chữ Viết</span>
+          </button>
+          <button class="type-toggle-btn" id="btn-mode-math" data-input-mode="math" title="Chế độ nhận diện công thức toán (Căn bậc hai, Tích phân, Phân số...)">
+            <i data-lucide="variable"></i> <span>Toán Học (√, ∫, a/b)</span>
+          </button>
+        </div>
+
+        <!-- Dải ký hiệu toán học nhanh khi bật Chế độ Toán -->
+        <div class="math-quick-tools" id="math-quick-tools" style="display: none;">
+          <div class="math-symbols-scroll">
+            <button class="math-sym-btn" data-latex="\sqrt{x}" title="Căn bậc hai">√x</button>
+            <button class="math-sym-btn" data-latex="\int_{a}^{b} f(x) \, dx" title="Tích phân">∫</button>
+            <button class="math-sym-btn" data-latex="\frac{a}{b}" title="Phân số">a/b</button>
+            <button class="math-sym-btn" data-latex="x^{2}" title="Số mũ">x²</button>
+            <button class="math-sym-btn" data-latex="\sum_{i=1}^{n}" title="Tổng Sigma">∑</button>
+            <button class="math-sym-btn" data-latex="\lim_{x \to 0}" title="Giới hạn">lim</button>
+            <button class="math-sym-btn" data-latex="\pi" title="Số Pi">π</button>
+            <button class="math-sym-btn" data-latex="\infty" title="Vô cực">∞</button>
+            <button class="math-sym-btn" data-latex="\pm" title="Cộng trừ">±</button>
+            <button class="math-sym-btn" data-latex="\alpha" title="Alpha">α</button>
+            <button class="math-sym-btn" data-latex="\beta" title="Beta">β</button>
+            <button class="math-sym-btn" data-latex="\theta" title="Theta">θ</button>
+          </div>
+          <div class="math-samples-group">
+            <button id="btn-sample-sqrt" class="math-sample-badge" title="Tải nét mẫu căn bậc hai">Mẫu Căn √</button>
+            <button id="btn-sample-integral" class="math-sample-badge" title="Tải nét mẫu tích phân">Mẫu Tích Phân ∫</button>
+            <button id="btn-sample-power" class="math-sample-badge" title="Tải nét mẫu số mũ: x² + y² = r²">Mẫu Số Mũ x²</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vùng vẽ Canvas -->
+      <div class="canvas-wrapper" id="canvas-container">
+        <canvas id="ink-canvas"></canvas>
+
+        <div class="canvas-hint" id="canvas-hint">
+          <i data-lucide="edit"></i> Dùng chuột, ngón tay hoặc bút cảm ứng Stylus để viết chữ tại đây
+        </div>
+      </div>
+
+      <!-- Thanh gợi ý từ nhận diện thời gian thực (Candidate Suggestions Bar) -->
+      <div class="candidate-bar" id="candidate-bar">
+        <div class="candidate-label">
+          <i data-lucide="sparkle"></i> Từ nhận diện:
+        </div>
+        <div class="candidates-list" id="candidates-list"></div>
+      </div>
+
+      <!-- Nút Chuyển đổi lớn (Hero Action) -->
+      <div class="canvas-footer-action">
+        <div class="convert-mode-selection">
+          <select id="insert-mode-select" class="mode-dropdown" title="Vị trí chèn chữ vào trang Word">
+            <option value="append">Ghép nối vào cuối tài liệu</option>
+            <option value="cursor">Chèn tại vị trí con trỏ</option>
+            <option value="replace">Thay thế toàn bộ trang</option>
+          </select>
+        </div>
+
+        <button id="btn-convert-word" class="hero-convert-btn" title="Phím tắt: Ctrl + Enter">
+          <span class="btn-glow"></span>
+          <i data-lucide="wand-2"></i>
+          <span class="btn-text" id="convert-btn-label">Chuyển Thành Word</span>
+          <span class="btn-hotkey">Ctrl + ↵</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- KHUNG PHẢI: KHÔNG GIAN ĐẦU RA (Gồm 2 chế độ: Trang Word & Bảng Trắng) -->
+    <section class="document-panel" id="panel-document">
+      
+      <!-- ==================== VIEW 1: TRANG TÀI LIỆU WORD ==================== -->
+      <div class="output-view active" id="view-word-document">
+        <!-- Thanh công cụ Word Ribbon -->
+        <div class="panel-toolbar word-toolbar">
+          <div class="toolbar-group">
+            <!-- Phông chữ -->
+            <select id="toolbar-font-select" class="ribbon-select font-family-select" title="Đổi phông chữ">
+              <option value="Be Vietnam Pro">Be Vietnam Pro (Chuẩn Đẹp)</option>
+              <option value="Times New Roman">Times New Roman (Chuẩn Word)</option>
+              <option value="Inter">Inter (Hiện Đại)</option>
+              <option value="Merriweather">Merriweather (Văn Học)</option>
+              <option value="Playfair Display">Playfair Display (Nghệ Thuật)</option>
+              <option value="Dancing Script">Dancing Script (Bút Mềm)</option>
+              <option value="Outfit">Outfit (Công Nghệ)</option>
+            </select>
+
+            <!-- Cỡ chữ -->
+            <select id="toolbar-fontsize-select" class="ribbon-select font-size-select" title="Cỡ chữ">
+              <option value="3">12pt (Tiêu chuẩn)</option>
+              <option value="4" selected>14pt (Chuẩn Word)</option>
+              <option value="5">18pt (Tiêu đề phụ)</option>
+              <option value="6">24pt (Tiêu đề lớn)</option>
+              <option value="7">32pt (Đầu đề)</option>
+            </select>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- Định dạng chữ: Đậm, Nghiêng, Gạch chân -->
+          <div class="toolbar-group format-buttons">
+            <button class="ribbon-btn" data-edit-cmd="bold" title="In đậm (Ctrl+B)">
+              <i data-lucide="bold"></i>
+            </button>
+            <button class="ribbon-btn" data-edit-cmd="italic" title="In nghiêng (Ctrl+I)">
+              <i data-lucide="italic"></i>
+            </button>
+            <button class="ribbon-btn" data-edit-cmd="underline" title="Gạch chân (Ctrl+U)">
+              <i data-lucide="underline"></i>
+            </button>
+            <button class="ribbon-btn" data-edit-cmd="strikeThrough" title="Gạch ngang">
+              <i data-lucide="strikethrough"></i>
+            </button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- Căn lề văn bản -->
+          <div class="toolbar-group alignment-buttons">
+            <button class="ribbon-btn" data-edit-cmd="justifyLeft" title="Căn lề trái">
+              <i data-lucide="align-left"></i>
+            </button>
+            <button class="ribbon-btn" data-edit-cmd="justifyCenter" title="Căn giữa">
+              <i data-lucide="align-center"></i>
+            </button>
+            <button class="ribbon-btn" data-edit-cmd="justifyRight" title="Căn lề phải">
+              <i data-lucide="align-right"></i>
+            </button>
+            <button class="ribbon-btn" data-edit-cmd="justifyFull" title="Căn đều 2 bên (Chuẩn Word)">
+              <i data-lucide="align-justify"></i>
+            </button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- Danh sách -->
+          <div class="toolbar-group list-buttons">
+            <button class="ribbon-btn" data-edit-cmd="insertUnorderedList" title="Danh sách gạch đầu dòng">
+              <i data-lucide="list"></i>
+            </button>
+            <button class="ribbon-btn" data-edit-cmd="insertOrderedList" title="Danh sách đánh số 1, 2, 3">
+              <i data-lucide="list-ordered"></i>
+            </button>
+            <button class="ribbon-btn" data-edit-cmd="insertHorizontalRule" title="Chèn đường kẻ phân cách">
+              <i data-lucide="minus"></i>
+            </button>
+          </div>
+
+          <div class="toolbar-group actions-end">
+            <button id="btn-clear-doc" class="icon-btn-sm text-danger" title="Xóa toàn bộ văn bản">
+              <i data-lucide="file-x"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Khung hiển thị giả lập Trang giấy A4 Microsoft Word -->
+        <div class="document-scroll-container">
+          <!-- Thước đo Ruler chuẩn Word -->
+          <div class="word-ruler">
+            <div class="ruler-marker-left" title="Lề trái: 2.5cm"></div>
+            <div class="ruler-scale"></div>
+            <div class="ruler-marker-right" title="Lề phải: 2.0cm"></div>
+          </div>
+
+          <!-- Tờ giấy A4 chuẩn -->
+          <div class="a4-page-sheet" id="a4-sheet">
+            <div class="page-watermark">InkToWord Document</div>
+            
+            <!-- Vùng soạn thảo Rich Text -->
+            <div 
+              id="word-document-editor" 
+              class="document-content-editable" 
+              contenteditable="true" 
+              spellcheck="false"
+              data-placeholder="Chữ viết tay của bạn sau khi nhận diện sẽ tự động xuất hiện tại đây dưới dạng văn bản Word tuyệt đẹp. Bạn cũng có thể trực tiếp gõ, chỉnh sửa hoặc định dạng bài viết tại trang này..."
+            ><p><br></p></div>
+
+            <div class="page-footer-mark">Trang 1 / 1</div>
+          </div>
+        </div>
+
+        <!-- Chân trang tài liệu Word (Thống kê và Xuất file) -->
+        <div class="document-footer-bar">
+          <div class="doc-stats" id="document-stats">
+            <span class="stat-item"><i data-lucide="file-text"></i> 0 từ</span>
+            <span class="stat-item"><i data-lucide="type"></i> 0 ký tự</span>
+            <span class="stat-item"><i data-lucide="clock"></i> ~1 phút đọc</span>
+          </div>
+
+          <div class="doc-export-actions">
+            <!-- Nút Sao chép Rich Text -->
+            <button id="btn-copy-doc" class="export-btn outline" title="Sao chép văn bản để dán vào Word/Docs">
+              <i data-lucide="copy"></i> Sao Chép
+            </button>
+
+            <!-- Nút In / PDF -->
+            <button id="btn-export-pdf" class="export-btn outline" title="Xuất hoặc In ra file PDF chuẩn A4">
+              <i data-lucide="printer"></i> Xuất PDF
+            </button>
+
+            <!-- Nút Tải Word .docx chính thức -->
+            <button id="btn-export-docx" class="export-btn word-primary" title="Tải tệp tin Microsoft Word .docx về máy">
+              <i data-lucide="file-down"></i> Tải File Word (.docx)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== VIEW 2: BẢNG TRẮNG (WHITEBOARD) ==================== -->
+      <div class="output-view" id="view-whiteboard">
+        <!-- Thanh công cụ Bảng Trắng -->
+        <div class="panel-toolbar whiteboard-toolbar">
+          <div class="toolbar-group">
+            <button class="tool-btn active" id="wb-tool-select" data-wb-tool="select" title="Chế độ chọn & kéo thả thẻ">
+              <i data-lucide="mouse-pointer-2"></i> <span>Kéo Thẻ</span>
+            </button>
+            <button class="tool-btn" id="wb-tool-marker" data-wb-tool="marker" title="Bút lông vẽ sơ đồ trên bảng">
+              <i data-lucide="pen-tool"></i> <span>Bút Dạ Bảng</span>
+            </button>
+            <button class="tool-btn" id="wb-tool-highlighter" data-wb-tool="highlighter" title="Bút nhớ đánh dấu">
+              <i data-lucide="highlighter"></i> <span>Dạ Quang</span>
+            </button>
+            <button class="tool-btn" id="wb-tool-eraser" data-wb-tool="eraser" title="Tẩy nét vẽ trên bảng">
+              <i data-lucide="eraser"></i> <span>Tẩy</span>
+            </button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- Bảng màu bút dạ bảng trắng -->
+          <div class="toolbar-group whiteboard-colors">
+            <button class="color-dot active" data-wb-color="#1e293b" style="background: #1e293b;" title="Dạ đen"></button>
+            <button class="color-dot" data-wb-color="#2563eb" style="background: #2563eb;" title="Dạ xanh dương"></button>
+            <button class="color-dot" data-wb-color="#dc2626" style="background: #dc2626;" title="Dạ đỏ"></button>
+            <button class="color-dot" data-wb-color="#16a34a" style="background: #16a34a;" title="Dạ xanh lá"></button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- Thêm thẻ ghi chú thủ công -->
+          <button id="btn-add-sticky" class="action-btn outline-btn" title="Tạo thêm 1 thẻ ghi chú mới trên bảng">
+            <i data-lucide="sticky-note"></i> + Thẻ Ghi Chú
+          </button>
+
+          <!-- Tác vụ cuối -->
+          <div class="toolbar-group actions-end">
+            <button id="btn-sync-to-word" class="action-btn outline-btn" title="Chuyển toàn bộ thẻ trên bảng trắng sang trang Word A4">
+              <i data-lucide="arrow-right-left"></i> Ghép Vào Word
+            </button>
+            <button id="btn-export-whiteboard" class="export-btn word-primary" title="Tải toàn bộ Bảng Trắng dạng ảnh PNG">
+              <i data-lucide="download"></i> Tải Ảnh Bảng Trắng
+            </button>
+            <button id="btn-clear-whiteboard" class="icon-btn-sm text-danger" title="Xóa toàn bộ thẻ và nét vẽ trên bảng trắng">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bề mặt Bảng Trắng Vô Cực -->
+        <div class="whiteboard-workspace" id="whiteboard-workspace">
+          <!-- Canvas vẽ bút dạ -->
+          <canvas id="whiteboard-canvas"></canvas>
+
+          <!-- Lớp chứa các thẻ ghi chú kéo thả -->
+          <div class="whiteboard-cards-layer" id="whiteboard-cards-layer"></div>
+
+          <!-- Hướng dẫn khi bảng trắng còn trống -->
+          <div class="whiteboard-empty-hint" id="whiteboard-empty-hint">
+            <i data-lucide="layout-grid"></i>
+            <span>Hãy viết chữ ở khung bên trái và bấm <strong>"Chuyển Lên Bảng Trắng"</strong> để tạo các thẻ ghi chú tuyệt đẹp có thể tự do kéo thả tại đây!</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Toast thông báo trạng thái -->
+  <div id="status-toast" class="status-toast"></div>
+
+  <!-- Modal cài đặt API Key Gemini cho AI Vision Toán Học -->
+  <div class="api-modal-overlay" id="api-modal-overlay" style="display: none;">
+    <div class="api-modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="key-round"></i> Cài Đặt AI Vision Toán Học (Gemini)
+        </div>
+        <button class="modal-close-btn" id="btn-close-modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          Nhập <strong>Google Gemini API Key</strong> để AI đọc công thức toán học phức tạp hoặc nhận diện ảnh chữ viết tay thành văn bản.
+        </p>
+        <div class="input-field-group">
+          <label for="input-gemini-key">Gemini API Key:</label>
+          <input type="password" id="input-gemini-key" class="modal-input" placeholder="Dán Gemini API Key của bạn tại đây...">
+        </div>
+        <div class="modal-hint">
+          <i data-lucide="shield-check"></i> Key chỉ được lưu trong phiên trình duyệt (SessionStorage) và chỉ dùng để gửi yêu cầu nhận diện. Bạn có thể lấy API Key tại <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer">Google AI Studio</a>.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn outline-btn" id="btn-clear-key">Xóa Key</button>
+        <button class="export-btn word-primary" id="btn-save-key">Lưu Cài Đặt</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
