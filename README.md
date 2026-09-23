@@ -14,7 +14,7 @@
    - Tải ảnh chữ viết tay chụp từ bên ngoài lên bảng vẽ (OCR ảnh cần Gemini API Key).
 
 2. **Nhận Diện Chữ Viết Tay Thông Minh (Handwriting OCR Engine)**:
-   - Phân tích tọa độ nét vẽ vector thời gian thực, đọc chuẩn xác toàn bộ dấu thanh tiếng Việt.
+   - Phân đoạn các nét vẽ thành dòng và gửi tới Google Handwriting IME để nhận diện tiếng Việt; kết quả phụ thuộc dịch vụ mạng và độ rõ của chữ.
    - Thanh gợi ý từ (Candidate Bar) xuất hiện linh hoạt để chọn từ nhanh chỉ với 1 cú nhấp.
    - Chuyển đổi 1-click hoặc qua phím tắt `Ctrl + Enter` với hiệu ứng ăn mừng pháo hoa.
 
@@ -39,19 +39,21 @@
    - Tự động lưu bản nháp vào LocalStorage.
    - Âm thanh phản hồi tương tác nhẹ nhàng (Web Audio API).
 
+6. **Công thức toán học**:
+   - Chế độ toán có nhận diện cấu trúc 2D từ nét vẽ, mẫu/ký hiệu chèn nhanh và xem trước bằng KaTeX; kết quả có thể cần sửa LaTeX thủ công.
+   - Có thể nhập Gemini API key để thử nhận diện bằng Vision (tùy chọn, gửi ảnh tới dịch vụ bên ngoài). Key lưu trong `sessionStorage` của trình duyệt, không gửi qua server của app.
+   - Khi xuất `.docx`, công thức được ghi dưới dạng **chuỗi LaTeX**, chưa phải phương trình Word có thể chỉnh sửa trực quan. PDF dùng hộp thoại in của trình duyệt.
+
 ---
 
 ## 🚀 Hướng Dẫn Khởi Chạy
 
-Ứng dụng đang chạy sẵn tại:
-```
-http://localhost:5173/
-```
-
-Nếu muốn khởi động lại sau này, mở PowerShell tại thư mục này và chạy:
+Yêu cầu Node.js và npm. Mở PowerShell tại thư mục dự án rồi chạy:
 ```powershell
+npm install
 npm run dev
 ```
+Mở địa chỉ Vite hiển thị trong terminal (mặc định `http://localhost:5173/`).
 
 Để chạy bản production có proxy OCR (sau khi build):
 ```powershell
@@ -59,6 +61,8 @@ npm run build
 npm start
 ```
 Mở `http://localhost:4173/`. Server Node đi kèm sẽ chuyển tiếp request `/api/handwriting` tới Google Handwriting API.
+
+> Nhận diện chữ viết tay cần kết nối Internet: Vite và server production chuyển tiếp tới Google Handwriting IME; trình duyệt cũng có đường gọi trực tiếp dự phòng. Nhận diện ảnh tải lên và toán bằng Gemini cần key riêng, có thể phát sinh chi phí theo nhà cung cấp.
 
 ---
 
